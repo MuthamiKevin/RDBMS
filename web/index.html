@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Simple RDBMS Demo</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        input { margin: 5px; padding: 5px; }
+        button { margin: 5px; padding: 5px 10px; }
+        table { border-collapse: collapse; margin-top: 20px; width: 60%; }
+        th, td { border: 1px solid #333; padding: 8px; text-align: left; }
+        th { background-color: #eee; }
+    </style>
+</head>
+<body>
+
+<h2>Customer Management</h2>
+
+<div>
+    <input id="id" placeholder="ID" type="number">
+    <input id="name" placeholder="Name" type="text">
+    <input id="email" placeholder="Email" type="email"><br>
+
+    <button onclick="createCustomer()">Create</button>
+    <button onclick="updateCustomer()">Update</button>
+    <button onclick="deleteCustomer()">Delete</button>
+    <button onclick="loadCustomers()">Load Customers</button>
+</div>
+
+<h3>Customer List</h3>
+<table id="customerTable">
+    <thead>
+        <tr><th>ID</th><th>Name</th><th>Email</th></tr>
+    </thead>
+    <tbody></tbody>
+</table>
+
+<script>
+const apiBase = "/customers";
+
+// --- Helper: Get form values ---
+function getFormData() {
+    return {
+        id: parseInt(document.getElementById("id").value),
+        name: document.getElementById("name").value,
+        email: document.getElementById("email").value
+    };
+}
+
+// --- Helper: Render table ---
+function renderTable(customers) {
+    const tbody = document.querySelector("#customerTable tbody");
+    tbody.innerHTML = "";
+    customers.forEach(c => {
+        const row = `<tr>
+            <td>${c.id}</td>
+            <td>${c.name}</td>
+            <td>${c.email}</td>
+        </tr>`;
+        tbody.innerHTML += row;
+    });
+}
+
+// --- CRUD Operations ---
+
+async function loadCustomers() {
+    const res = await fetch(apiBase);
+    const data = await res.json();
+    renderTable(data);
+}
+
+async function createCustomer() {
+    const data = getFormData();
+    await fetch(apiBase, {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify(data)
+    });
+    loadCustomers();
+}
+
+async function updateCustomer() {
+    const data = getFormData();
+    await fetch(`${apiBase}/${data.id}`, {
+        method: "PUT",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify(data)
+    });
+    loadCustomers();
+}
+
+async function deleteCustomer() {
+    const id = document.getElementById("id").value;
+    if (!id) return alert("Enter ID to delete");
+    await fetch(`${apiBase}/${id}`, {
+        method: "DELETE"
+    });
+    loadCustomers();
+}
+
+// --- Initial load ---
+loadCustomers();
+</script>
+
+</body>
+</html>
