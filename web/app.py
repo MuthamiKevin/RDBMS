@@ -1,30 +1,13 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 
-from rdbms.engine import execute
+from rdbms.engine import engine
 
-app = FastAPI(title="Banking RDBMS Demo")
+app = FastAPI(title="Simple RDBMS Demo")
 
-# Initialize DB schema
-
-execute("""
-CREATE TABLE customers (
-    id INT PRIMARY KEY,
-    name TEXT,
-    email TEXT UNIQUE
-)
-""")
-
-execute("""
-CREATE TABLE accounts (
-    id INT PRIMARY KEY,
-    account_number TEXT UNIQUE,
-    customer_id INT,
-    balance FLOAT
-)
-""")
-
+# Initialize tables
+engine.create_table("customers", ["id", "name", "email"])
 
 # Models
 class Customer(BaseModel):
@@ -32,56 +15,43 @@ class Customer(BaseModel):
     name: str
     email: str
 
-class Account(BaseModel):
-    id: int
-    account_number: str
-    customer_id: int
-    balance: float
 
-
-# Routes
 @app.get("/", response_class=HTMLResponse)
 def home():
     with open("web/index.html") as f:
         return f.read()
 
-# Customers 
+
+# CREATE
 @app.post("/customers")
 def create_customer(customer: Customer):
-    sql = f"""
-    INSERT INTO customers
-    VALUES ({customer.id}, '{customer.name}', '{customer.email}')
-    """
-    return {"result": execute(sql)}
+    engine.insert("customers", customer.dict())
+    return {"message": "Customer created"}
 
+
+# READ
 @app.get("/customers")
 def get_customers():
-    return execute("SELECT * FROM customers")
+    return engine.select("customers")
 
-# Accounts 
-@app.post("/accounts")
-def create_account(account: Account):
-    sql = f"""
-    INSERT INTO accounts
-    VALUES (
-        {account.id},
-        '{account.account_number}',
-        {account.customer_id},
-        {account.balance}
+
+# UPDATE
+@app.put("/customers/{customer_id}")
+def update_customer(customer_id: int, customer: Customer):
+    updated = engine.update(
+        "customers",
+        ("id", customer_id),
+        customer.dict()
     )
-    """
-    return {"result": execute(sql)}
+    if not updated:
+        raise HTTPException(404, "Customer not found")
+    return {"message": "Customer updated"}
 
-@app.get("/accounts")
-def get_accounts():
-    return execute("SELECT * FROM accounts")
 
-# Banking Operation 
-@app.post("/deposit/{account_number}/{amount}")
-def deposit(account_number: str, amount: float):
-    sql = f"""
-    UPDATE accounts
-    SET balance = {amount}
-    WHERE account_number = '{account_number}'
-    """
-    return {"result": execute(sql)}
+# DELETE
+@app.delete("/customers/{customer_id}")
+def delete_customer(customer_id: int):
+    deleted = engine.delete("customers", ("id", customer_id))
+    if not deleted:
+        raise HTTPException(404, "Customer not found")
+    return {"message": "Customer deleted"}
